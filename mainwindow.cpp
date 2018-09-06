@@ -51,8 +51,9 @@ MainWindow::~MainWindow()
 void MainWindow::on_btnTalk_clicked()
 {
     QString text = ui->txtEditor->toPlainText();
+    text = text.trimmed();
 
-    if (text.isEmpty())
+    if (text.isEmpty() || text.isNull())
         return;
 
     if (speech->state() == QTextToSpeech::BackendError) {
@@ -70,6 +71,9 @@ void MainWindow::on_btnTalk_clicked()
             return;
         }
     }
+
+    ui->txtEditor->clear();
+    ui->txtEditor->setText(text);
 
     allTextList.clear();
     allTextList = text.split("\n");
@@ -166,9 +170,10 @@ void MainWindow::on_actionOpen_triggered()
     stream.setAutoDetectUnicode(true);
 
     QString allText = stream.readAll();
+    allText = allText.trimmed();
 
     ui->txtEditor->clear();
-    ui->txtEditor->append(allText);
+    ui->txtEditor->insertPlainText(allText);
 
     file.close();
     isForceStop = true;
@@ -242,11 +247,21 @@ void MainWindow::on_chkAllowScroll_stateChanged(int state)
 void MainWindow::on_btnJumpToLine_clicked()
 {
     int index = ui->boxJumpLine->value();
+    if (index >= allTextList.length()) {
+        index = currentLine;
+        ui->boxJumpLine->setValue(index);
+        return;
+    }
     JumpToCertainLine(index);
 }
 
 void MainWindow::on_boxJumpLine_valueChanged(int value)
 {
+    if (value >= allTextList.length()) {
+        value = currentLine;
+        ui->boxJumpLine->setValue(value);
+        return;
+    }
     JumpToCertainLine(value);
 }
 
