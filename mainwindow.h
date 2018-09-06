@@ -25,7 +25,7 @@ private slots:
     void on_volumeSlider_valueChanged(int value);
     void on_actionTalk_triggered();
     void on_actionPause_triggered();
-    void on_speech_stateChanged(QTextToSpeech::State state);
+    void stateChanged(QTextToSpeech::State state);
     void on_actionMove_to_speech_line_triggered();
     void on_actionSkip_to_10_line_triggered();
     void on_btnSearchText_clicked();
@@ -42,6 +42,7 @@ private slots:
     void on_actionVolume_Down_triggered();
     void on_boxSpeechSpeed_valueChanged(int value);
     void on_boxSpeechSpeed_editingFinished();
+    void on_actionStart_at_last_speech_triggered();
 
 private:
     int currentLine;
@@ -54,6 +55,7 @@ private:
     QStringList allTextList;
     void MoveToLine(int lineIndex);
     void MoveToLastSpeechLine();
+    void StartSpeech();
     void StopSpeech();
     void JumpToCertainLine(int index);
     void UpdateLineLabel(int index);

@@ -39,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->chkAllowScroll->setChecked(isAllowScroll);
     ui->boxVolume->setValue(ui->volumeSlider->value());
 
-    connect(speech, &QTextToSpeech::stateChanged, this, &MainWindow::on_speech_stateChanged);
+    connect(speech, &QTextToSpeech::stateChanged, this, &MainWindow::stateChanged);
 }
 
 MainWindow::~MainWindow()
@@ -61,67 +61,58 @@ void MainWindow::on_btnTalk_clicked()
         return;
     }
 
-    if (speech->state() != QTextToSpeech::Ready) {
+    if (speech->state() != QTextToSpeech::Ready || isSpeaking) {
         int result = QMessageBox::warning(this, "Warning", "Are you sure to start over?", QMessageBox::Yes, QMessageBox::No);
-        if (QMessageBox::Yes == QMessageBox::StandardButton(result)) {
-            speech->stop();
-            ui->btnPause->setText("Pause");
-        }
-        else {
+        if (QMessageBox::Yes == QMessageBox::StandardButton(result))
+            StopSpeech();
+        else
             return;
-        }
     }
 
-    ui->txtEditor->clear();
-    ui->txtEditor->setText(text);
-
     allTextList.clear();
-    allTextList = text.split("\n");
+    allTextList = text.split("\n", QString::SplitBehavior::KeepEmptyParts);
 
-    currentLine = 0;
+    ui->txtEditor->clear();
+    ui->txtEditor->insertPlainText(text);
+
+    currentLine = -1;
     bool isValid = IsCanFindNextValidLine();
 
     if (!isValid)
         return;
 
     MoveToLine(currentLine);
-
-    isForceStop = false;
-    isSpeaking = true;
-
-    speech->say(allTextList[currentLine].trimmed());
-
-    ui->txtEditor->setReadOnly(true);
-    ui->statusBar->showMessage("Speaking...");
+    StartSpeech();
 }
 
-void MainWindow::on_speech_stateChanged(QTextToSpeech::State state)
+void MainWindow::stateChanged(QTextToSpeech::State state)
 {
     if (isForceStop) {
-        speech->stop();
-        isSpeaking = false;
-        ui->btnPause->setText("Pause");
-        ui->statusBar->showMessage("Stopped...");
-        ui->txtEditor->setReadOnly(false);
+        StopSpeech();
         return;
     }
 
     if (QTextToSpeech::Ready == state) {
-        if (isSpeaking) {
-            isSpeaking = false;
-            currentLine += 1;
+        ui->statusBar->showMessage("Speech stopped...");
 
-            if (currentLine < allTextList.length()) {
-                bool isValid = IsCanFindNextValidLine();
-                if (isValid) {
-                    speech->say(allTextList[currentLine].trimmed());
-                    MoveToLastSpeechLine();
-                }
+        if (!isSpeaking)
+            return;
+
+        if (currentLine < allTextList.length()) {
+            bool isValid = IsCanFindNextValidLine();
+
+            if (isValid) {
+                speech->say(allTextList[currentLine].trimmed());
+                MoveToLastSpeechLine();
+            }
+            else {
+                isForceStop = true;
+                StopSpeech();
             }
         }
     }
     else if (QTextToSpeech::Speaking == state) {
-        isSpeaking = true;
+        ui->statusBar->showMessage("Speech started...");
         speech->setVolume(ui->volumeSlider->value() / 100.0);
         speech->setRate(ui->boxSpeechSpeed->value() / 10.0);
     }
@@ -168,7 +159,9 @@ void MainWindow::on_actionOpen_triggered()
         return;
 
     QTextStream stream(&file);
-    stream.setAutoDetectUnicode(true);
+
+    stream.setAutoDetectUnicode(false);
+    stream.skipWhiteSpace();
 
     QString allText = stream.readAll();
     allText = allText.trimmed();
@@ -177,7 +170,7 @@ void MainWindow::on_actionOpen_triggered()
     ui->txtEditor->insertPlainText(allText);
 
     file.close();
-    isForceStop = true;
+    StopSpeech();
 }
 
 void MainWindow::on_volumeSlider_valueChanged(int value)
@@ -203,10 +196,7 @@ void MainWindow::on_actionMove_to_speech_line_triggered()
 
 void MainWindow::on_actionSkip_to_10_line_triggered()
 {
-    if (speech->state() != QTextToSpeech::Ready)
-        speech->stop();
-
-    MoveToLine(currentLine + 10);
+    JumpToCertainLine(currentLine + 10);
     ui->btnPause->setText("Pause");
     speech->say(allTextList[currentLine].trimmed());
 }
@@ -328,26 +318,43 @@ void MainWindow::on_boxSpeechSpeed_editingFinished()
     ui->boxSpeechSpeed->clearFocus();
 }
 
+void MainWindow::on_actionStart_at_last_speech_triggered()
+{
+    if (!isSpeaking)
+        return;
+
+    if (speech->state() != QTextToSpeech::Ready)
+        StopSpeech();
+
+    StartSpeech();
+}
+
 bool MainWindow::IsCanFindNextValidLine()
 {
     bool isValid = false;
     QString line;
 
+    int lookUpLineIndex = (currentLine + 1);
+
     do {
-        if (currentLine >= allTextList.length()) {
+        if (lookUpLineIndex >= allTextList.length()) {
             currentLine = 0;
             isValid = false;
             StopSpeech();
             break;
         }
 
-        line = allTextList[currentLine].trimmed();
+        line = allTextList[lookUpLineIndex].trimmed();
         isValid = !(line.isNull() || line.isEmpty() || line == "\n");
 
         if (!isValid)
-            currentLine += 1;
+            lookUpLineIndex += 1;
     }
     while (!isValid);
+
+    if (isValid)
+        currentLine = lookUpLineIndex;
+
     return isValid;
 }
 
@@ -383,12 +390,21 @@ int MainWindow::SearchText(QString text, int from)
     return index;
 }
 
+void MainWindow::StartSpeech()
+{
+    ui->txtEditor->setReadOnly(true);
+    isForceStop = false;
+    isSpeaking = true;
+    speech->say(allTextList[currentLine].trimmed());
+}
+
 void MainWindow::StopSpeech()
 {
     isForceStop = true;
+    isSpeaking = false;
     speech->stop();
     ui->btnPause->setText("Pause");
-    ui->statusBar->showMessage("Stopped...");
+    ui->statusBar->showMessage("Speech stopped...");
     ui->txtEditor->setReadOnly(false);
 }
 
