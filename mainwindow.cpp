@@ -17,8 +17,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QVoice voice(speech->availableVoices()[0]);
     QLocale locale(speech->availableLocales()[0]);
 
-    speech->setPitch(3 / 10);
-    speech->setRate(1.5 / 10);
+    speech->setPitch(3 / 10.0);
+    speech->setRate(1 / 10.0);
     speech->setVolume(ui->volumeSlider->value() / 100.0);
     speech->setVoice(voice);
     speech->setLocale(locale);
@@ -123,6 +123,7 @@ void MainWindow::on_speech_stateChanged(QTextToSpeech::State state)
     else if (QTextToSpeech::Speaking == state) {
         isSpeaking = true;
         speech->setVolume(ui->volumeSlider->value() / 100.0);
+        speech->setRate(ui->boxSpeechSpeed->value() / 10.0);
     }
 }
 
@@ -312,6 +313,19 @@ void MainWindow::on_actionVolume_Down_triggered()
     ui->boxVolume->setValue(currentVolume);
 
     emit this->on_boxVolume_valueChanged(currentVolume);
+}
+
+void MainWindow::on_boxSpeechSpeed_valueChanged(int value)
+{
+    double rate = (value / 10.0);
+    if (speech->rate() > rate || speech->rate() < rate) {
+        speech->setRate(rate);
+    }
+}
+
+void MainWindow::on_boxSpeechSpeed_editingFinished()
+{
+    ui->boxSpeechSpeed->clearFocus();
 }
 
 bool MainWindow::IsCanFindNextValidLine()

@@ -40,6 +40,8 @@ private slots:
     void on_actionAbout_triggered();
     void on_actionVolume_Up_triggered();
     void on_actionVolume_Down_triggered();
+    void on_boxSpeechSpeed_valueChanged(int value);
+    void on_boxSpeechSpeed_editingFinished();
 
 private:
     int currentLine;
